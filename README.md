@@ -71,45 +71,22 @@ $ rosrun ur5e_control force_to_velocity_controller.py
 
 This feature allows you to log wrench data from the `/wrench` topic into a CSV file based on commands provided in a text file. The data includes force and torque components along with the timestamp.
 
-1. **Prepare the command file**:
-    - Create a text file (e.g., `command_file.txt`).
-    - This file will be used to control the logging process by writing either `start` or `stop` on the last line.
 
-2. **Specify paths in the script**:
-    - Update the `command_file` and `output_dir` paths in the script with the appropriate file paths.
+1. **Specify paths in the script**:
+    - Update the`output_dir` path in the script with the appropriate file path.
 
-3. **Run the logger**:
+2. **Run the logger**:
     ```bash
     rosrun ur5e_control graphing_and_csv.py
     ```
 
-4. **Control logging**:
-    - To start logging, write `start` as the last line in the `command_file.txt`.
-    - To stop logging, write `stop` as the last line in the `command_file.txt`.
-    - The script will read the `command_file.txt` every second to check for changes.
+3. **Control logging**:
+    - Use GUI to start and stop logging
 
-5. **CSV Output**:
+4. **CSV Output**:
     - When logging is stopped, the collected data is saved to a CSV file in the specified output directory.
-    - The CSV filename will be in the format `DD-MM-YYYY-HH:MM:SS.csv`.
 
-## Example
 
-- **command_file.txt**:
-    ```
-    start
-    ```
-
-- **Run the script**:
-    ```bash
-    rosrun ur5e_control graphing_and_csv.py
-    ```
-
-- **Stop logging** by updating the `command_file.txt`:
-    ```
-    stop
-    ```
-
-- **Output CSV**: The CSV file will be saved in the specified output directory with columns: `force_x, force_y, force_z, torque_x, torque_y, torque_z, time`.
 
 ## Dependencies
 
