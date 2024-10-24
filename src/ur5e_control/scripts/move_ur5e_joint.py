@@ -51,12 +51,39 @@ def get_all_positions():
 
 def set_joint_positions():
     positions = get_all_positions()
+    group = MoveGroupCommander("manipulator")
+    
     while not rospy.is_shutdown():
-        user_input = input("Enter joint positions as comma-separated values or 'q' to quit: ")
+        user_input = input("Enter joint positions as comma-separated values, 'd' to get current joint positions, or 'q' to quit: ")
         if user_input.lower() == 'q':
             break
+        elif user_input.lower() == 'd':
+            try:
+                # Get current joint positions from the robot
+                current_joint_positions = group.get_current_joint_values()
+                joint_positions_str = ', '.join([f"{pos:.4f}" for pos in current_joint_positions])
+                print(f"Current Joint Positions: {joint_positions_str}")
+                
+                # Prompt user to save the current joint positions
+                save_input = input("Would you like to save the current joint positions? (y/n): ").lower()
+                if save_input == 'y':
+                    position_name = input("Enter a name for this position (or leave blank): ")
+                    position_id = len(positions) + 1
+                    position_data = {
+                        'PositionID': position_id,
+                        'PositionName': position_name,
+                        'JointPositions': current_joint_positions
+                    }
+                    save_position(position_id, position_data)
+                    rospy.loginfo(f"Current position saved with ID: {position_id}")
+                    positions.append(position_data)  # Update the positions list
+                else:
+                    rospy.loginfo("Current joint positions were not saved.")
+            except Exception as e:
+                rospy.logwarn(f"Failed to get current joint positions: {e}")
+            continue
         try:
-            joint_positions = [float(x) for x in user_input.split(',')]
+            joint_positions = [float(x.strip()) for x in user_input.split(',')]
             if len(joint_positions) != 6:
                 rospy.logwarn("Please enter exactly 6 joint positions.")
                 continue
@@ -69,6 +96,7 @@ def set_joint_positions():
             }
             save_position(position_id, position_data)
             rospy.loginfo(f"Position saved with ID: {position_id}")
+            positions.append(position_data)  # Update the positions list
         except ValueError:
             rospy.logwarn("Invalid input. Please enter numeric values.")
 
@@ -114,10 +142,7 @@ def delete_saved_position():
         rospy.logwarn("Invalid input. Please enter a numeric ID.")
 
 def cycle_through_positions():
-    """
-    Cycles through all saved positions, moving the robot to each position in sequence.
-    Allows the user to set joint velocity scaling and time from start to finish for each movement.
-    """
+
     positions = get_all_positions()
     if not positions:
         rospy.logwarn("No positions saved to cycle through.")
