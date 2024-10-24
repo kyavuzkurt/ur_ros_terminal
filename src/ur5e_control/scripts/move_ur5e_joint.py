@@ -113,14 +113,65 @@ def delete_saved_position():
     except ValueError:
         rospy.logwarn("Invalid input. Please enter a numeric ID.")
 
+def cycle_through_positions():
+    """
+    Cycles through all saved positions, moving the robot to each position in sequence.
+    Allows the user to set joint velocity scaling and time from start to finish for each movement.
+    """
+    positions = get_all_positions()
+    if not positions:
+        rospy.logwarn("No positions saved to cycle through.")
+        return
+
+    try:
+        velocity_scale = float(input("Enter joint velocity scaling factor (e.g., 0.5 for 50% speed):(DEFAULT 0.5) "))
+        if not (0 < velocity_scale <= 1):
+            rospy.logwarn("Velocity scale must be between 0 and 1. Using default value of 0.5.")
+            velocity_scale = 0.5
+    except ValueError:
+        rospy.logwarn("Invalid input. Using default velocity scale of 0.5.")
+        velocity_scale = 0.5
+
+    try:
+        total_time = float(input("Enter total time for the cycle (in seconds):(DEFAULT 10) "))
+        if total_time <= 0:
+            rospy.logwarn("Total time must be positive. Using default value of 10 seconds.")
+            total_time = 10.0
+    except ValueError:
+        rospy.logwarn("Invalid input. Using default total time of 10 seconds.")
+        total_time = 10.0
+
+    rospy.loginfo("Starting to cycle through positions...")
+    start_time = time.time()
+    num_positions = len(positions)
+    interval = total_time / num_positions
+
+    for idx, pos in enumerate(positions):
+        if rospy.is_shutdown():
+            break
+        rospy.loginfo(f"Moving to Position ID: {pos['PositionID']}, Name: {pos['PositionName']}")
+        group = MoveGroupCommander("manipulator")
+        group.set_max_velocity_scaling_factor(velocity_scale)
+        group.set_planning_time(interval)
+        group.go(pos['JointPositions'], wait=True)
+        group.stop()
+        elapsed = time.time() - start_time
+        if elapsed >= total_time:
+            rospy.loginfo("Total cycle time reached.")
+            break
+        time.sleep(interval - (elapsed % interval))
+
+    rospy.loginfo("Completed cycling through positions.")
+
 def main_menu():
     while not rospy.is_shutdown():
         print("\nMain Menu:")
         print("1: Save new position")
         print("2: Load to a saved position")
         print("3: Delete a saved position")
-        print("4: Exit")
-        choice = input("Enter your choice (1, 2, 3, or 4): ")
+        print("4: Cycle through saved positions")
+        print("5: Exit")
+        choice = input("Enter your choice (1, 2, 3, 4, or 5): ")
         if choice == '1':
             set_joint_positions()
         elif choice == '2':
@@ -128,10 +179,12 @@ def main_menu():
         elif choice == '3':
             delete_saved_position()
         elif choice == '4':
+            cycle_through_positions()
+        elif choice == '5':
             print("Exiting...")
             break
         else:
-            rospy.logwarn("Invalid choice. Please enter 1, 2, 3, or 4.")
+            rospy.logwarn("Invalid choice. Please enter 1, 2, 3, 4, or 5.")
 
 def main():
     roscpp_initialize(sys.argv)
@@ -152,4 +205,3 @@ if __name__ == '__main__':
         main()
     except rospy.ROSInterruptException:
         pass
-
