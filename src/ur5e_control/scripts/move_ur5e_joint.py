@@ -148,9 +148,20 @@ def cycle_through_positions():
         rospy.logwarn("No positions saved to cycle through.")
         return
 
+    # Get number of cycles
+    while True:
+        try:
+            num_cycles = int(input("\nEnter the number of cycles to perform: "))
+            if num_cycles > 0:
+                break
+            else:
+                print("Please enter a positive number.")
+        except ValueError:
+            print("Invalid input. Please enter a positive integer.")
+
     print("\nCycle Through Positions Options:")
     print("a: Specify individual velocity scaling for each movement")
-    print("b: Specify joint angular velocities for movements")
+    print("b: Specify movement time for each movement")
     option = input("Select an option (a or b): ").lower()
 
     if option == 'a':
@@ -171,74 +182,111 @@ def cycle_through_positions():
                 except ValueError:
                     print("Invalid input. Please enter a numeric value.")
         
-        rospy.loginfo("Starting to cycle through positions with specified velocity scales...")
-        for i, pos in enumerate(positions):
-            if rospy.is_shutdown():
-                break
-            next_pos = positions[(i + 1) % len(positions)]
-            scale = velocity_scales[i]
-            rospy.loginfo(f"Moving to Position ID: {pos['PositionID']}, Name: {pos['PositionName']} with velocity scale: {scale}")
-            group = MoveGroupCommander("manipulator")
-            group.set_max_velocity_scaling_factor(scale)
-            group.go(pos['JointPositions'], wait=True)
-            group.stop()
-            rospy.sleep(1)  # Optional: Add a short pause between movements
+        rospy.loginfo(f"Starting to cycle through positions {num_cycles} times with specified velocity scales...")
+        for cycle in range(num_cycles):
+            rospy.loginfo(f"Starting cycle {cycle + 1}/{num_cycles}")
+            for i, pos in enumerate(positions):
+                if rospy.is_shutdown():
+                    break
+                next_pos = positions[(i + 1) % len(positions)]
+                scale = velocity_scales[i]
+                rospy.loginfo(f"Moving to Position ID: {pos['PositionID']}, Name: {pos['PositionName']} with velocity scale: {scale}")
+                group = MoveGroupCommander("manipulator")
+                group.set_max_velocity_scaling_factor(scale)
+                group.go(pos['JointPositions'], wait=True)
+                group.stop()
+                rospy.sleep(1)  
 
-        rospy.loginfo("Completed cycling through positions with individual velocity scales.")
+        rospy.loginfo("Completed all cycles with individual velocity scales.")
 
     elif option == 'b':
-        # Option B: Specify joint angular velocities for movements
         try:
-            print("\nEnter desired joint angular velocities in radians per second for each joint:")
-            joint_velocities = []
-            for j in range(1, 7):
+            num_movements = len(positions)
+            print(f"\nEnter desired movement time in seconds for each of the {num_movements} movements in the cycle (1 sec corresponds to π rad/s):")
+            movement_times = []
+            for i in range(num_movements):
                 while True:
                     try:
-                        vel = float(input(f"Joint {j} angular velocity (rad/s) (must be > 0, max is 180 deg/s for joints 1-3, 360 deg/s for joints 4-6): "))
-                        if vel > 0:
-                            joint_velocities.append(vel)
+                        time_input = float(input(
+                            f"Movement {i + 1} time (sec) (must be > 0): "
+                        ))
+                        if time_input > 0:
+                            movement_times.append(time_input)
                             break
                         else:
                             print("Please enter a positive value.")
                     except ValueError:
                         print("Invalid input. Please enter a numeric value.")
         except Exception as e:
-            rospy.logwarn(f"Error obtaining joint angular velocities: {e}")
+            rospy.logwarn(f"Error obtaining movement times: {e}")
             return
 
         robot_max_velocities = [
-            math.pi,
-            math.pi,
-            math.pi,
-            2*math.pi,
-            2*math.pi,
-            2*math.pi
+            math.pi,        # Joint 1 maximum velocity (rad/s)
+            math.pi,        # Joint 2 maximum velocity (rad/s)
+            math.pi,        # Joint 3 maximum velocity (rad/s)
+            2 * math.pi,    # Joint 4 maximum velocity (rad/s)
+            2 * math.pi,    # Joint 5 maximum velocity (rad/s)
+            2 * math.pi     # Joint 6 maximum velocity (rad/s)
         ]
 
-        scaling_factors = []
-        for desired_vel, max_vel in zip(joint_velocities, robot_max_velocities):
-            scale = desired_vel / max_vel
-            if scale > 1.0:
-                rospy.logwarn(f"Desired velocity {desired_vel} exceeds maximum {max_vel} for a joint. Scaling down to 1.0.")
-                scale = 1.0
-            scaling_factors.append(scale)
+        rospy.loginfo(f"Starting to cycle through positions {num_cycles} times with specified movement times...")
+        total_start_time = time.time()
         
-        overall_scale = min(scaling_factors)
-        rospy.loginfo(f"Calculated overall velocity scaling factor based on desired joint velocities: {overall_scale:.2f}")
+        for cycle in range(num_cycles):
+            cycle_start_time = time.time()
+            rospy.loginfo(f"Starting cycle {cycle + 1}/{num_cycles}")
+            
+            for i, pos in enumerate(positions):
+                if rospy.is_shutdown():
+                    break
+                next_pos = positions[(i + 1) % len(positions)]
+                movement_time = movement_times[i]
+                
+                # Calculate required velocity scaling factor based on movement_time
+                required_scales = []
+                for j in range(6):
+                    delta = abs(next_pos['JointPositions'][j] - pos['JointPositions'][j])
+                    if movement_time == 0:
+                        rospy.logwarn("Movement time cannot be zero.")
+                        scale = 1.0
+                    else:
+                        required_vel = delta / movement_time
+                        scale = required_vel / robot_max_velocities[j]
+                    required_scales.append(scale)
 
-        rospy.loginfo("Starting to cycle through positions with specified joint angular velocities...")
-        for i, pos in enumerate(positions):
-            if rospy.is_shutdown():
-                break
-            next_pos = positions[(i + 1) % len(positions)]
-            rospy.loginfo(f"Moving to Position ID: {pos['PositionID']}, Name: {pos['PositionName']} with velocity scale: {overall_scale:.2f}")
-            group = MoveGroupCommander("manipulator")
-            group.set_max_velocity_scaling_factor(overall_scale)
-            group.go(pos['JointPositions'], wait=True)
-            group.stop()
-            rospy.sleep(1)  # Optional: Add a short pause between movements
+                # Find the maximum scale needed and adjust if it's greater than 1
+                max_scale = max(required_scales)
+                if max_scale > 1.0:
+                    # If we need to move faster than maximum velocity, we need to extend the movement time
+                    adjusted_time = movement_time * max_scale
+                    rospy.logwarn(
+                        f"Movement {i + 1}: Requested time {movement_time:.2f}s is too short. "
+                        f"Adjusting to {adjusted_time:.2f}s to respect velocity limits."
+                    )
+                    overall_scale = 1.0
+                else:
+                    overall_scale = max_scale
 
-        rospy.loginfo("Completed cycling through positions with specified joint angular velocities.")
+                movement_start_time = time.time()
+                group = MoveGroupCommander("manipulator")
+                group.set_max_velocity_scaling_factor(overall_scale)
+                group.go(next_pos['JointPositions'], wait=True)
+                group.stop()
+                movement_actual_time = time.time() - movement_start_time
+                
+                rospy.loginfo(
+                    f"Movement {i + 1}: Target time: {movement_time:.2f}s, "
+                    f"Actual time: {movement_actual_time:.2f}s, "
+                    f"Difference: {movement_actual_time - movement_time:.2f}s"
+                )
+                rospy.sleep(1)  # Optional: Add a short pause between movements
+            
+            cycle_time = time.time() - cycle_start_time
+            rospy.loginfo(f"Cycle {cycle + 1} completed in {cycle_time:.2f} seconds")
+        
+        total_time = time.time() - total_start_time
+        rospy.loginfo(f"Completed all {num_cycles} cycles in {total_time:.2f} seconds")
 
     else:
         rospy.logwarn("Invalid option selected. Please choose 'a' or 'b'.")

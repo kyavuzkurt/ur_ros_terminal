@@ -9,11 +9,10 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_ros_planning_interface
   geometry_msgs
   controller_manager
-  plotjuggler_msgs
 )
 
 catkin_package(
-  CATKIN_DEPENDS roscpp rospy std_msgs sensor_msgs moveit_ros_planning_interface geometry_msgs controller_manager plotjuggler_msgs
+  CATKIN_DEPENDS roscpp rospy std_msgs sensor_msgs moveit_ros_planning_interface geometry_msgs controller_manager
 )
 
 include_directories(
@@ -33,5 +32,6 @@ catkin_install_python(PROGRAMS
 install(DIRECTORY launch/
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
 )
+
 
 
