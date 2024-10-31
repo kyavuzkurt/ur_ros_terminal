@@ -1,6 +1,0 @@
-<launch>
-  <node pkg="plotjuggler" type="plotjuggler" name="plotjuggler" output="screen">
-    <param name="topics" value="['/wrench']"/>
-  </node>
-</launch>
-

@@ -1,11 +1,27 @@
 
 ## Overview
 
-This is a ROS package for controlling various functions of the UR5E which are not included in the official drivers (as far as I know).
+This is a ROS package for controlling various functions of the UR series robots which are not included in the official drivers. Despite the name it can be used for every UR series robot.
 
 ## Requirements
 
 This program requires a system set up with Ubuntu 20.04 and ROS Noetic. Install the required Universal Robots ROS drivers from [here](https://github.com/UniversalRobots/Universal_Robots_ROS_Driver) and [here](https://github.com/ros-industrial/universal_robot).
+Additionally, this package includes a Docker container with all dependencies installed. 
+
+### Docker Setup
+Build the docker image by running:
+
+```bash
+$ sudo docker build -t ros-noetic-container .
+```
+
+
+And run the container by:
+```bash
+$ sudo docker run -it --rm --env="DISPLAY" --volume="/etc/group:/etc/group:ro" --volume="/etc/passwd:/etc/passwd:ro" --volume="/etc/shadow:/etc/shadow:ro" --volume="/etc/sudoers.d:/etc/sudoers.d:ro" --net host --privileged -v /home:/home -v ~/Volumes:/home/usr/ ros-noetic-container
+```
+
+Full guide for setting up Docker can be found [here](https://medium.com/@sepideh.92sh/how-docker-revolutionizes-application-development-a-comprehensive-guide-for-beginners-fc2d3e53eb31).
 
 ## Setting Up
 
@@ -25,7 +41,7 @@ $ roslaunch ur5e_moveit_config moveit_planning_execution.launch
 
 ### Force Avoidance
 
-You can make the UR5E avoid force by letting it go in the same Cartesian direction of the force. It depends on MoveIt, so it can take some time or might not function at all at times. I don't need to use it more extensively than it is now, so I don't think I am going to update this. You can run the force avoidance by:
+You can make the UR series robotavoid force by letting it go in the same Cartesian direction of the force. It depends on MoveIt, so it can take some time or might not function at all at times. I don't need to use it more extensively than it is now, so I don't think I am going to update this. You can run the force avoidance by:
 
 ```bash
 $ rosrun ur5e_control force_avoidance.py
@@ -41,7 +57,7 @@ $ rosrun ur5e_control force_magnitude_publisher.py
 
 ### Storing Joint Positions and Moving the Robot to Those Positions
 
-You can save positions based on 6 joint angles. The menu is self-explanatory. You can run move joints by:
+You can save positions of the robot based on different options. See the menu for more information. You can run move joints by:
 
 ```bash
 $ rosrun ur5e_control move_ur5e_joint.py
@@ -67,26 +83,23 @@ This works with same principal as the forward kinematics demo. Axis forces gener
 $ rosrun ur5e_control force_to_velocity_controller.py
 ```
 
-### Logging Wrench Data to CSV
+### Logging Data to CSV
 
-This feature allows you to log wrench data from the `/wrench` topic into a CSV file based on commands provided in a text file. The data includes force and torque components along with the timestamp.
+This feature allows you to log any data from the any topic into a CSV file based on commands provided in a text file. It is currently configured for the '/joint_states' topic. You can configure it to your preferences by editing the 'src/ur5e_control/graphing_and_csv.py' file.
 
+You can run the logger by:
 
-1. **Specify paths in the script**:
-    - Update the`output_dir` path in the script with the appropriate file path.
+```bash
+$ rosrun ur5e_control graphing_and_csv.py
+```
 
-2. **Run the logger**:
-    ```bash
-    rosrun ur5e_control graphing_and_csv.py
-    ```
+### Wrench Logger GUI
 
-3. **Control logging**:
-    - Use GUI to start and stop logging
+This is a simple GUI for logging wrench data from the '/wrench' topic. You can run it by:
 
-4. **CSV Output**:
-    - When logging is stopped, the collected data is saved to a CSV file in the specified output directory.
-
-
+```bash
+$ rosrun ur5e_control wrench_logger_gui.py
+```
 
 ## Dependencies
 
