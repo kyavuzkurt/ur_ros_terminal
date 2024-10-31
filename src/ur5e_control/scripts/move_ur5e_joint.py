@@ -9,26 +9,38 @@ import math
 from moveit_commander import RobotCommander, PlanningSceneInterface, MoveGroupCommander
 from moveit_commander import roscpp_initialize, roscpp_shutdown
 from geometry_msgs.msg import PoseStamped
+from sensor_msgs.msg import JointState
+import threading
 
+# Define separate directories for normal positions and freedrive sequences
 POSITIONS_DIR = 'positions'
+POSITIONS_FD_DIR = 'positions_fd'
 
 def get_position_file(position_id):
+    """Get the file path for a normal position."""
     return os.path.join(POSITIONS_DIR, f'position_{position_id}.json')
 
+def get_freedrive_position_file(position_id):
+    """Get the file path for a freedrive sequence."""
+    return os.path.join(POSITIONS_FD_DIR, f'freedrive_{position_id}.json')
+
 def move_joint(joint_positions):
+    """Move the robot to the specified joint positions."""
     group = MoveGroupCommander("manipulator")
     group.go(joint_positions, wait=True)
     group.stop()
 
 def save_position(position_id, position_data):
+    """Save a normal position to the positions directory."""
     if not os.path.exists(POSITIONS_DIR):
         os.makedirs(POSITIONS_DIR)
     position_file = get_position_file(position_id)
     with open(position_file, 'w') as f:
-        json.dump(position_data, f)
+        json.dump(position_data, f, indent=4)
     rospy.loginfo(f"Position saved to {position_file}")
 
 def load_position(position_id):
+    """Load a normal position from the positions directory."""
     position_file = get_position_file(position_id)
     try:
         with open(position_file, 'r') as f:
@@ -39,23 +51,188 @@ def load_position(position_id):
         rospy.logwarn(f"Position file {position_file} not found.")
         return None
 
+def save_freedrive_position(position_id, position_data):
+    """Save a freedrive sequence to the positions_fd directory."""
+    if not os.path.exists(POSITIONS_FD_DIR):
+        os.makedirs(POSITIONS_FD_DIR)
+    position_file = get_freedrive_position_file(position_id)
+    with open(position_file, 'w') as f:
+        json.dump(position_data, f, indent=4)
+    rospy.loginfo(f"Freedrive position sequence saved to {position_file}")
+
+def load_freedrive_position(position_id):
+    """Load a freedrive sequence from the positions_fd directory."""
+    position_file = get_freedrive_position_file(position_id)
+    try:
+        with open(position_file, 'r') as f:
+            position_data = json.load(f)
+        rospy.loginfo(f"Freedrive sequence loaded from {position_file}")
+        return position_data
+    except FileNotFoundError:
+        rospy.logwarn(f"Freedrive sequence file {position_file} not found.")
+        return None
+
 def get_all_positions():
+    """Retrieve all normal positions from the positions directory."""
     positions = []
     if os.path.exists(POSITIONS_DIR):
         for filename in os.listdir(POSITIONS_DIR):
             if filename.startswith('position_') and filename.endswith('.json'):
-                position_id = int(filename.split('_')[1].split('.')[0])
-                position_data = load_position(position_id)
-                if position_data:
-                    positions.append(position_data)
+                try:
+                    position_id = int(filename.split('_')[1].split('.')[0])
+                    position_data = load_position(position_id)
+                    if position_data:
+                        positions.append(position_data)
+                except (IndexError, ValueError):
+                    rospy.logwarn(f"Filename {filename} does not match expected format.")
     return positions
 
+def get_all_freedrive_sequences():
+    """Retrieve all freedrive sequences from the positions_fd directory."""
+    sequences = []
+    if os.path.exists(POSITIONS_FD_DIR):
+        for filename in os.listdir(POSITIONS_FD_DIR):
+            if filename.startswith('freedrive_') and filename.endswith('.json'):
+                try:
+                    position_id = int(filename.split('_')[1].split('.')[0])
+                    position_data = load_freedrive_position(position_id)
+                    if position_data:
+                        sequences.append(position_data)
+                except (IndexError, ValueError):
+                    rospy.logwarn(f"Filename {filename} does not match expected format.")
+    return sequences
+
+def record_freedrive():
+    """
+    Records the robot's joint positions while in freedrive mode.
+    The recording captures joint positions every 0.2 seconds.
+    The recording stops when the user presses Enter.
+    """
+    recorded_positions = []
+    stop_event = threading.Event()
+    latest_joint_positions = []
+
+    def joint_states_callback(msg):
+        nonlocal latest_joint_positions
+        latest_joint_positions = list(msg.position)  # Convert tuple to list
+
+    def wait_for_enter():
+        input("Press Enter to stop recording Freedrive motions.\n")
+        stop_event.set()
+
+    # Subscribe to joint states
+    rospy.Subscriber('/joint_states', JointState, joint_states_callback)
+
+    rospy.loginfo("Entering Freedrive Recording Mode.")
+    rospy.loginfo("Please manually move the robot. Recording will capture positions every 0.2 seconds.")
+    rospy.loginfo("Press Enter to stop recording.")
+
+    # Start the thread to listen for Enter key
+    input_thread = threading.Thread(target=wait_for_enter)
+    input_thread.start()
+
+    # Record positions at 0.2 second intervals
+    rate = rospy.Rate(5)  # 5 Hz corresponds to 0.2 seconds
+    while not stop_event.is_set() and not rospy.is_shutdown():
+        if latest_joint_positions:
+            recorded_positions.append({
+                'timestamp': time.time(),
+                'JointPositions': latest_joint_positions.copy()  # Safe copy
+            })
+        rate.sleep()
+
+    input_thread.join()
+
+    rospy.loginfo("Stopped recording Freedrive motions.")
+
+    if not recorded_positions:
+        rospy.logwarn("No joint positions were recorded.")
+        return
+
+    # Save the recorded positions
+    sequences = get_all_freedrive_sequences()
+    position_id = len(sequences) + 1
+    position_name = input("Enter a name for the recorded sequence: ")
+
+    position_data = {
+        'PositionID': position_id,
+        'PositionName': position_name,
+        'JointPositionsSequence': recorded_positions
+    }
+
+    save_freedrive_position(position_id, position_data)
+    rospy.loginfo(f"Freedrive motion sequence saved with ID: {position_id}")
+
+def play_freedrive_sequence():
+    """
+    Plays back a recorded freedrive motion sequence.
+    """
+    sequences = get_all_freedrive_sequences()
+
+    if not sequences:
+        rospy.logwarn("No freedrive sequences available to play.")
+        return
+
+    print("\nAvailable Freedrive Sequences:")
+    for seq in sequences:
+        print(f"ID: {seq['PositionID']}, Name: {seq['PositionName']}")
+
+    try:
+        selected_id = int(input("Enter the ID of the sequence to play back: "))
+    except ValueError:
+        rospy.logwarn("Invalid input. Please enter a numeric ID.")
+        return
+
+    sequence = next((seq for seq in sequences if seq['PositionID'] == selected_id), None)
+
+    if not sequence:
+        rospy.logwarn("Selected sequence ID not found.")
+        return
+
+    joint_positions_sequence = sequence.get('JointPositionsSequence', [])
+
+    if not joint_positions_sequence:
+        rospy.logwarn("The selected sequence has no recorded joint positions.")
+        return
+
+    group = MoveGroupCommander("manipulator")
+
+    rospy.loginfo(f"Playing back freedrive sequence: {sequence['PositionName']} (ID: {sequence['PositionID']})")
+
+    start_time = None
+    previous_timestamp = None
+
+    for entry in joint_positions_sequence:
+        timestamp = entry['timestamp']
+        joint_positions = entry['JointPositions']
+
+        if start_time is None:
+            start_time = timestamp
+            previous_timestamp = timestamp
+        else:
+            # Calculate time difference between current and previous pose
+            time_diff = timestamp - previous_timestamp
+            if time_diff > 0:
+                rospy.sleep(time_diff)
+            previous_timestamp = timestamp
+
+        try:
+            group.go(joint_positions, wait=True)
+            group.stop()
+        except Exception as e:
+            rospy.logwarn(f"Failed to move to joint positions: {e}")
+            continue
+
+    rospy.loginfo("Freedrive sequence playback completed.")
+
 def set_joint_positions():
+    """Handles the setting and recording of joint positions."""
+    # Retrieve all normal positions
     positions = get_all_positions()
     group = MoveGroupCommander("manipulator")
     
     while not rospy.is_shutdown():
-        user_input = input("Enter joint positions as comma-separated values, 'd' to get current joint positions, or 'q' to quit: ")
+        user_input = input("Enter joint positions as comma-separated values, 'd' to get current joint positions, 'f' to record freedrive motions, or 'q' to quit: ")
         if user_input.lower() == 'q':
             break
         elif user_input.lower() == 'd':
@@ -83,6 +260,12 @@ def set_joint_positions():
             except Exception as e:
                 rospy.logwarn(f"Failed to get current joint positions: {e}")
             continue
+        elif user_input.lower() == 'f':
+            try:
+                record_freedrive()
+            except Exception as e:
+                rospy.logwarn(f"Failed to record freedrive motions: {e}")
+            continue
         try:
             joint_positions = [float(x.strip()) for x in user_input.split(',')]
             if len(joint_positions) != 6:
@@ -101,27 +284,8 @@ def set_joint_positions():
         except ValueError:
             rospy.logwarn("Invalid input. Please enter numeric values.")
 
-def load_to_saved_position():
-    positions = get_all_positions()
-    if not positions:
-        rospy.logwarn("No positions saved.")
-        return
-
-    print("Saved Positions:")
-    for pos in positions:
-        print(f"ID: {pos['PositionID']}, Name: {pos['PositionName']}")
-    
-    try:
-        position_id = int(input("Enter the ID of the position to load: "))
-        position_data = load_position(position_id)
-        if position_data:
-            move_joint(position_data['JointPositions'])
-        else:
-            rospy.logwarn("Position ID not found.")
-    except ValueError:
-        rospy.logwarn("Invalid input. Please enter a numeric ID.")
-
 def delete_saved_position():
+    """Deletes a saved normal position."""
     positions = get_all_positions()
     if not positions:
         rospy.logwarn("No positions saved.")
@@ -143,6 +307,7 @@ def delete_saved_position():
         rospy.logwarn("Invalid input. Please enter a numeric ID.")
 
 def cycle_through_positions():
+    """Cycles through saved normal positions."""
     positions = get_all_positions()
     if not positions:
         rospy.logwarn("No positions saved to cycle through.")
@@ -291,15 +456,38 @@ def cycle_through_positions():
     else:
         rospy.logwarn("Invalid option selected. Please choose 'a' or 'b'.")
 
+def load_to_saved_position():
+    """Loads a saved normal position."""
+    positions = get_all_positions()
+    if not positions:
+        rospy.logwarn("No positions saved.")
+        return
+
+    print("Saved Positions:")
+    for pos in positions:
+        print(f"ID: {pos['PositionID']}, Name: {pos['PositionName']}")
+    
+    try:
+        position_id = int(input("Enter the ID of the position to load: "))
+        position_data = load_position(position_id)
+        if position_data:
+            move_joint(position_data['JointPositions'])
+        else:
+            rospy.logwarn("Position ID not found.")
+    except ValueError:
+        rospy.logwarn("Invalid input. Please enter a numeric ID.")
+
 def main_menu():
+    """Displays the main menu and handles user input."""
     while not rospy.is_shutdown():
         print("\nMain Menu:")
         print("1: Save new position")
         print("2: Load to a saved position")
         print("3: Delete a saved position")
         print("4: Cycle through saved positions")
-        print("5: Exit")
-        choice = input("Enter your choice (1, 2, 3, 4, or 5): ")
+        print("5: Play Freedrive Sequence")
+        print("6: Exit")
+        choice = input("Enter your choice (1, 2, 3, 4, 5, or 6): ")
         if choice == '1':
             set_joint_positions()
         elif choice == '2':
@@ -309,19 +497,21 @@ def main_menu():
         elif choice == '4':
             cycle_through_positions()
         elif choice == '5':
+            play_freedrive_sequence()
+        elif choice == '6':
             print("Exiting...")
             break
         else:
-            rospy.logwarn("Invalid choice. Please enter 1, 2, 3, 4, or 5.")
+            rospy.logwarn("Invalid choice. Please enter 1, 2, 3, 4, 5, or 6.")
 
 def main():
+    """Initializes the ROS node and starts the main menu."""
     roscpp_initialize(sys.argv)
     rospy.init_node('move_ur5e_with_moveit', anonymous=True)
     robot = RobotCommander()
     scene = PlanningSceneInterface()
     
- 
-    time.sleep(10)
+    time.sleep(3)
     
     group = MoveGroupCommander("manipulator")
     
