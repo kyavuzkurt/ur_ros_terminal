@@ -26,6 +26,7 @@ catkin_install_python(PROGRAMS
   scripts/force_magnitude_publisher.py
   scripts/force_to_velocity_controller.py
   scripts/graphing_and_csv.py
+  scripts/imu_logger_csv.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

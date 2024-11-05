@@ -132,7 +132,7 @@ def record_freedrive():
     input_thread.start()
 
     # Record positions at 0.2 second intervals
-    rate = rospy.Rate(5)  # 5 Hz corresponds to 0.2 seconds
+    rate = rospy.Rate(100)  # 5 Hz corresponds to 0.2 seconds
     while not stop_event.is_set() and not rospy.is_shutdown():
         if latest_joint_positions:
             recorded_positions.append({
@@ -387,8 +387,8 @@ def cycle_through_positions():
             return
 
         robot_max_velocities = [
-            math.pi,        # Joint 1 maximum velocity (rad/s)
-            math.pi,        # Joint 2 maximum velocity (rad/s)
+             math.pi,        # Joint 1 maximum velocity (rad/s)
+             math.pi,        # Joint 2 maximum velocity (rad/s)
             math.pi,        # Joint 3 maximum velocity (rad/s)
             2 * math.pi,    # Joint 4 maximum velocity (rad/s)
             2 * math.pi,    # Joint 5 maximum velocity (rad/s)
