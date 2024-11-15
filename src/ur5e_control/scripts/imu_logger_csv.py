@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import Vector3Stamped, QuaternionStamped
+from geometry_msgs.msg import Vector3Stamped, QuaternionStamped, PoseStamped, Pose2D
 from sensor_msgs.msg import Imu, MagneticField, TimeReference, JointState
+from nav_msgs.msg import Odometry
 import csv
 import os
 from datetime import datetime
@@ -26,7 +27,10 @@ class IMULogger:
             '/imu/data': 'imu_data',
             '/imu/mag': 'magnetic_data',
             '/imu/time_ref': 'time_reference_data',
-            '/joint_states': 'joint_states_data'
+            '/joint_states': 'joint_states_data',
+            '/Robot_1/pose': 'mocap_pose_data',
+            '/Robot_1/ground_pose': 'mocap_ground_pose_data',
+            '/Robot_1/Odom': 'mocap_odom_data'
         }
         
         # Create all subdirectories
@@ -45,7 +49,10 @@ class IMULogger:
             '/imu/data': Imu,
             '/imu/mag': MagneticField,
             '/imu/time_ref': TimeReference,
-            '/joint_states': JointState
+            '/joint_states': JointState,
+            '/Robot_1/pose': PoseStamped,
+            '/Robot_1/ground_pose': Pose2D,
+            '/Robot_1/Odom': Odometry
         }
         
         # Initialize CSV writers for each topic
@@ -109,6 +116,16 @@ class IMULogger:
             return ['time_ref', 'source']
         elif msg_type == JointState:
             return ['shoulder_pan', 'shoulder_lift', 'elbow', 'wrist_1', 'wrist_2', 'wrist_3']
+        elif msg_type == PoseStamped:
+            return ['position_x', 'position_y', 'position_z',
+                   'orientation_x', 'orientation_y', 'orientation_z', 'orientation_w']
+        elif msg_type == Pose2D:
+            return ['x', 'y', 'theta']
+        elif msg_type == Odometry:
+            return ['position_x', 'position_y', 'position_z',
+                   'orientation_x', 'orientation_y', 'orientation_z', 'orientation_w',
+                   'linear_vel_x', 'linear_vel_y', 'linear_vel_z',
+                   'angular_vel_x', 'angular_vel_y', 'angular_vel_z']
         else:
             return []
     
@@ -142,6 +159,22 @@ class IMULogger:
                 ]
             elif msg_type == JointState:
                 row = [data.position[0], data.position[1], data.position[2], data.position[3], data.position[4], data.position[5]]
+            elif msg_type == PoseStamped:
+                row = [
+                    data.pose.position.x, data.pose.position.y, data.pose.position.z,
+                    data.pose.orientation.x, data.pose.orientation.y,
+                    data.pose.orientation.z, data.pose.orientation.w
+                ]
+            elif msg_type == Pose2D:
+                row = [data.x, data.y, data.theta]
+            elif msg_type == Odometry:
+                row = [
+                    data.pose.pose.position.x, data.pose.pose.position.y, data.pose.pose.position.z,
+                    data.pose.pose.orientation.x, data.pose.pose.orientation.y,
+                    data.pose.pose.orientation.z, data.pose.pose.orientation.w,
+                    data.twist.twist.linear.x, data.twist.twist.linear.y, data.twist.twist.linear.z,
+                    data.twist.twist.angular.x, data.twist.twist.angular.y, data.twist.twist.angular.z
+                ]
             else:
                 row = []
             

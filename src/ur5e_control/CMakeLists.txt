@@ -8,6 +8,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   moveit_ros_planning_interface
   geometry_msgs
+  nav_msgs
   controller_manager
 )
 
