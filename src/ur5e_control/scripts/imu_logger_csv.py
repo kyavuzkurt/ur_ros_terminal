@@ -10,7 +10,6 @@ from datetime import datetime
 
 class IMULogger:
     def __init__(self):
-        # Create main imu_logs directory
         self.log_dir = 'imu_logs'
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
@@ -18,7 +17,6 @@ class IMULogger:
         else:
             rospy.loginfo(f"Log directory already exists: {self.log_dir}")
         
-        # Create individual folders for each data type, including mocap data
         self.data_folders = {
             '/filter/euler': 'euler_data',
             '/filter/free_acceleration': 'free_acceleration_data',
@@ -34,7 +32,6 @@ class IMULogger:
             '/mocap_node/Robot_1/Odom': 'mocap_odom_data'
         }
         
-        # Create all subdirectories
         for folder in self.data_folders.values():
             folder_path = os.path.join(self.log_dir, folder)
             if not os.path.exists(folder_path):
@@ -43,7 +40,6 @@ class IMULogger:
             else:
                 rospy.loginfo(f"Subdirectory already exists: {folder_path}")
         
-        # Define subscribers with their message types
         self.subscribers = {
             '/filter/euler': Vector3Stamped,
             '/filter/free_acceleration': Vector3Stamped,
@@ -59,7 +55,6 @@ class IMULogger:
             '/mocap_node/Robot_1/Odom': Odometry
         }
         
-        # Initialize CSV writers for each topic
         self.csv_files = {}
         self.csv_writers = {}
         for topic, msg_type in self.subscribers.items():
@@ -75,10 +70,8 @@ class IMULogger:
             except Exception as e:
                 rospy.logerr(f"Failed to open file {filename} for topic {topic}: {e}")
         
-        # Store subscribers in a list for cleanup
         self.subscribers_list = []
         
-        # Subscribe to each topic with its specific callback
         for topic, msg_type in self.subscribers.items():
             try:
                 sub = rospy.Subscriber(topic, msg_type, self._get_callback(topic, msg_type))
@@ -93,22 +86,17 @@ class IMULogger:
         for topic in self.subscribers.keys():
             rospy.loginfo("  - %s", topic)
         
-        # Add shutdown hook
         rospy.on_shutdown(self.shutdown_hook)
     
     def _create_filename(self, topic):
-        # Get the specific folder for this topic
         folder_name = self.data_folders[topic]
         
-        # Create the full path without duplicate imu_logs
         folder_path = os.path.join(self.log_dir, folder_name)
         
-        # Sanitize topic name for filename
         sanitized_topic = topic.strip('/').replace('/', '_')
         timestamp = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
         filename = f'{sanitized_topic}_data_{timestamp}.csv'
         
-        # Return full path
         return os.path.join(folder_path, filename)
     
     def _get_headers(self, msg_type):
@@ -178,7 +166,7 @@ class IMULogger:
                         data.source
                     ]
                 elif msg_type == JointState:
-                    row = list(data.position)[:6]  # Ensures only first 6 positions are taken
+                    row = list(data.position)[:6] 
                 elif msg_type == PoseStamped:
                     row = [
                         data.pose.position.x, data.pose.position.y, data.pose.position.z,
@@ -214,12 +202,10 @@ class IMULogger:
         """Clean shutdown handling"""
         rospy.loginfo("IMU Logger: Recording interrupted. Saving and closing files...")
         
-        # Unsubscribe from all topics first
         for sub in self.subscribers_list:
             sub.unregister()
             rospy.loginfo(f"Unsubscribed from topic.")
         
-        # Close all CSV files
         for topic, file in self.csv_files.items():
             try:
                 file.close()
@@ -231,7 +217,6 @@ class IMULogger:
 
 if __name__ == '__main__':
     try:
-        # Initialize the ROS node once here
         rospy.init_node('imu_logger', anonymous=True, log_level=rospy.DEBUG)
         logger = IMULogger()
         rospy.spin()

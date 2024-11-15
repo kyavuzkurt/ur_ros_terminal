@@ -1,7 +1,7 @@
 
 ## Overview
 
-This is a ROS package for controlling various functions of the UR series robots which are not included in the official drivers. Despite the name it can be used for every UR series robot.
+This is a ROS package for controlling various functions of the UR series robots which are not included in the official drivers. Despite the name it can be used for every UR series robot. The build is tested and working with UR5e on Ubuntu 20.04 ROS Noetic and UR3 on Docker with no problems.
 
 ## Requirements
 
@@ -101,13 +101,35 @@ This is a simple GUI for logging wrench data from the '/wrench' topic. You can r
 $ rosrun ur5e_control wrench_logger_gui.py
 ```
 
-## Dependencies
+### IMU Logger (For Research Purposes)
 
-- ROS
+This is a simple logger for several devices used on a research project. It logs data from an IMU, a motion capture system and the robot. You can run it by:
+
+```bash
+$ rosrun ur5e_control imu_logger.py
+```
+
+
+## Dependencies
+- ROS Noetic
 - `geometry_msgs` package
+- `moveit_msgs` package
+- `sensor_msgs` package
+- `std_msgs` package
+- `nav_msgs` package
+
+For the imu logger functionality, xsens_mt_ros package and mocap_optitrack packages are required. Hardware used on this project are Xsens MT 300 IMU and OptiTrack Prime 17w with a Motive 2.0.2 software.
+You can find the drivers for the packages [here](http://wiki.ros.org/xsens_mti_driver) and [here](http://wiki.ros.org/mocap_optitrack).
+
 
 Ensure you have the necessary dependencies installed and sourced before running the script.
+
+## Acknowledgements
+
+I would like to thank the teams behind Universal Robots software, MoveIT, Xsens and OptiTrack since this project uses their software and hardware. 
 
 ---
 
 If you need any further adjustments or have additional content to add, feel free to let me know!
+
+And also, I would like to promote my other repository on UR Cobots, [universal_robots_cv](https://github.com/kyavuzkurt/universal_robots_cv.git), which works on ROS2 Humble without MoveIt motion planning software. It is a work in progress on integrating computer vision applications with the UR robots. 
