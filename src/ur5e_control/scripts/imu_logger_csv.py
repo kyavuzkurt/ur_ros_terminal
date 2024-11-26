@@ -152,7 +152,7 @@ class IMULogger:
                     row = [
                         data.linear_acceleration.x, data.linear_acceleration.y, data.linear_acceleration.z,
                         data.angular_velocity.x, data.angular_velocity.y, data.angular_velocity.z,
-                        data.orientation.x, data.orientation.y, data.orientation.z, data.orientation_w
+                        data.orientation.x, data.orientation.y, data.orientation.z, data.orientation.w
                     ]
                 elif msg_type == MagneticField:
                     row = [
