@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import rospy
-from geometry_msgs.msg import Vector3Stamped, QuaternionStamped, PoseStamped, Pose2D
+from geometry_msgs.msg import Vector3Stamped, QuaternionStamped, Pose, Pose2D
 from sensor_msgs.msg import Imu, MagneticField, TimeReference, JointState
 from nav_msgs.msg import Odometry
 import csv
@@ -27,9 +27,9 @@ class IMULogger:
             '/imu/mag': 'magnetic_data',
             '/imu/time_ref': 'time_reference_data',
             '/joint_states': 'joint_states_data',
-            '/mocap_node/Robot_1/pose': 'mocap_pose_data',
-            '/mocap_node/Robot_1/ground_pose': 'mocap_pose2d_data',
-            '/mocap_node/Robot_1/Odom': 'mocap_odom_data'
+            '/multicast_parser/Robot_1/pose': 'mocap_pose_data',
+            '/multicast_parser/Robot_1/ground_pose': 'mocap_pose2d_data',
+            '/multicast_parser/Robot_1/odom': 'mocap_odom_data'
         }
         
         for folder in self.data_folders.values():
@@ -50,9 +50,9 @@ class IMULogger:
             '/imu/mag': MagneticField,
             '/imu/time_ref': TimeReference,
             '/joint_states': JointState,
-            '/mocap_node/Robot_1/pose': PoseStamped,
-            '/mocap_node/Robot_1/ground_pose': Pose2D,
-            '/mocap_node/Robot_1/Odom': Odometry
+            '/multicast_parser/Robot_1/pose': Pose,
+            '/multicast_parser/Robot_1/ground_pose': Pose2D,
+            '/multicast_parser/Robot_1/odom': Odometry
         }
         
         self.csv_files = {}
@@ -116,7 +116,7 @@ class IMULogger:
             return ['time_ref', 'source']
         elif msg_type == JointState:
             return ['shoulder_pan', 'shoulder_lift', 'elbow', 'wrist_1', 'wrist_2', 'wrist_3']
-        elif msg_type == PoseStamped:
+        elif msg_type == Pose:
             return ['position_x', 'position_y', 'position_z',
                     'orientation_x', 'orientation_y', 'orientation_z', 'orientation_w']
         elif msg_type == Pose2D:
@@ -167,11 +167,11 @@ class IMULogger:
                     ]
                 elif msg_type == JointState:
                     row = list(data.position)[:6] 
-                elif msg_type == PoseStamped:
+                elif msg_type == Pose:
                     row = [
-                        data.pose.position.x, data.pose.position.y, data.pose.position.z,
-                        data.pose.orientation.x, data.pose.orientation.y,
-                        data.pose.orientation.z, data.pose.orientation.w
+                        data.position.x, data.position.y, data.position.z,
+                        data.orientation.x, data.orientation.y,
+                        data.orientation.z, data.orientation.w
                     ]
                 elif msg_type == Pose2D:
                     row = [data.x, data.y, data.theta]
