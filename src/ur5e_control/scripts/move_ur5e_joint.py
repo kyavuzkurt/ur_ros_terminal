@@ -85,6 +85,8 @@ def get_all_positions():
                         positions.append(position_data)
                 except (IndexError, ValueError):
                     rospy.logwarn(f"Filename {filename} does not match expected format.")
+    positions.sort(key=lambda x: x['PositionID'])
+
     return positions
 
 def get_all_freedrive_sequences():
@@ -360,7 +362,7 @@ def cycle_through_positions():
                 group.set_max_velocity_scaling_factor(scale)
                 group.go(pos['JointPositions'], wait=True)
                 group.stop()
-                rospy.sleep(1)  
+                #rospy.sleep(0.2)  
 
         rospy.loginfo("Completed all cycles with individual velocity scales.")
 
