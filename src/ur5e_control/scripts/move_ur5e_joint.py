@@ -327,44 +327,37 @@ def cycle_through_positions():
             print("Invalid input. Please enter a positive integer.")
 
     print("\nCycle Through Positions Options:")
-    print("a: Specify individual velocity scaling for each movement")
+    print("a: Specify a single velocity scaling factor for all movements")
     print("b: Specify movement time for each movement")
     option = input("Select an option (a or b): ").lower()
 
     if option == 'a':
-        # Option A: Specify individual velocity scaling factors
-        velocity_scales = []
-        print("\nEnter velocity scaling factors for each movement between positions:")
-        for i in range(len(positions)):
-            pos_from = positions[i]['PositionID']
-            pos_to = positions[(i + 1) % len(positions)]['PositionID']
-            while True:
-                try:
-                    scale = float(input(f"Velocity scale for moving from Position {pos_from} to Position {pos_to} (0 < scale <= 1): "))
-                    if 0 < scale <= 1:
-                        velocity_scales.append(scale)
-                        break
-                    else:
-                        print("Please enter a value between 0 and 1.")
-                except ValueError:
-                    print("Invalid input. Please enter a numeric value.")
-        
-        rospy.loginfo(f"Starting to cycle through positions {num_cycles} times with specified velocity scales...")
+        # Option A: Specify a single velocity scaling factor
+        while True:
+            try:
+                scale = float(input("\nEnter a velocity scaling factor (0 < scale <= 1): "))
+                if 0 < scale <= 1:
+                    break
+                else:
+                    print("Please enter a value between 0 and 1.")
+            except ValueError:
+                print("Invalid input. Please enter a numeric value.")
+
+        rospy.loginfo(f"Starting to cycle through positions {num_cycles} times with velocity scale: {scale}")
         for cycle in range(num_cycles):
             rospy.loginfo(f"Starting cycle {cycle + 1}/{num_cycles}")
             for i, pos in enumerate(positions):
                 if rospy.is_shutdown():
                     break
                 next_pos = positions[(i + 1) % len(positions)]
-                scale = velocity_scales[i]
                 rospy.loginfo(f"Moving to Position ID: {pos['PositionID']}, Name: {pos['PositionName']} with velocity scale: {scale}")
                 group = MoveGroupCommander("manipulator")
                 group.set_max_velocity_scaling_factor(scale)
                 group.go(pos['JointPositions'], wait=True)
                 group.stop()
-                #rospy.sleep(0.2)  
+                # rospy.sleep(0.2)  
 
-        rospy.loginfo("Completed all cycles with individual velocity scales.")
+        rospy.loginfo("Completed all cycles with the specified velocity scale.")
 
     elif option == 'b':
         try:
