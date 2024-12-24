@@ -1,0 +1,4 @@
+<launch>
+  <node name="imu_logger_csv" pkg="ur5e_control" type="imu_logger_csv.py" output="screen"/>
+  <node name="imu_logger_gui" pkg="ur5e_control" type="imu_logger_gui.py" output="screen"/>
+</launch> 
