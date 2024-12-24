@@ -38,7 +38,7 @@ class IMULoggerGUI(QtWidgets.QWidget):
 
     def init_ui(self):
         self.setWindowTitle('IMU Logger GUI')
-        self.setGeometry(100, 100, 1400, 800)  # Increased width to accommodate new controls
+        self.setGeometry(100, 100, 1400, 800)  
         
         layout = QtWidgets.QVBoxLayout()
         
@@ -142,7 +142,7 @@ class IMULoggerGUI(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, "Invalid Input", "Please enter a valid number for duration.")
     
     def on_logging_duration_elapsed(self):
-        self.logging_active = False
+        self.stop_logging()
         self.update_logging_indicator()
         self.start_logging_button.setEnabled(True)
         self.stop_logging_button.setEnabled(False)

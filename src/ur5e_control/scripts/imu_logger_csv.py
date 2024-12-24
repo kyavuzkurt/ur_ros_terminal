@@ -184,6 +184,7 @@ class IMULogger:
                 self.duration_timer = None
                 rospy.loginfo("Duration timer canceled.")
             rospy.loginfo("Logging stopped.")
+            self.close_all_files()
             return StopLoggingResponse(success=True, message="Logging stopped successfully.")
         except Exception as e:
             rospy.logerr(f"Failed to stop logging: {e}")
@@ -192,15 +193,18 @@ class IMULogger:
     def stop_logging_internal(self):
         if self.logging_active:
             self.logging_active = False
+            self.close_all_files()
             rospy.loginfo("Logging duration elapsed. Logging stopped.")
 
     def _create_filename(self, topic):
         folder_name = self.data_folders[topic]
         folder_path = os.path.join(self.log_dir, folder_name)
         sanitized_topic = topic.strip('/').replace('/', '_')
-        timestamp = datetime.now().strftime('%d-%m-%Y-%H-%M-%S')
-        filename = f'{sanitized_topic}_data_{timestamp}.csv'
-        return os.path.join(folder_path, filename)
+
+        filename = f'{sanitized_topic}_data.csv'
+        filepath = os.path.join(folder_path, filename)
+
+        return filepath
 
     def _get_headers(self, msg_type):
         if msg_type == Vector3Stamped:
